@@ -2,7 +2,7 @@
   <div class="home">
     <!-- Hero -->
     <section class="hero">
-      <p class="greeting">你好，我是</p>
+      <p class="greeting">你好，我是 </p>
       <h1 class="name">suhaohao<span class="dot">。</span></h1>
       <p class="intro">
         一个在学编程的学生，喜欢把学到的东西做成工具。<br />
