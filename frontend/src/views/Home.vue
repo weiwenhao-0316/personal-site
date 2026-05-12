@@ -3,7 +3,7 @@
     <!-- Hero -->
     <section class="hero">
       <p class="greeting">你好，我是</p>
-      <h1 class="name">魏文兵<span class="dot">。</span></h1>
+      <h1 class="name">suhaohao<span class="dot">。</span></h1>
       <p class="intro">
         一个在学编程的学生，喜欢把学到的东西做成工具。<br />
         这里记录成长、分享好用的东西，还有一个能聊天的 AI。
