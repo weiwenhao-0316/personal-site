@@ -26,20 +26,37 @@
     </div>
 
     <div class="status" :class="{ connected: backendOnline }">
-      {{ backendOnline ? '后端已连接' : '后端未连接——启动 python main.py 后刷新' }}
+      <template v-if="backendChecking">检测后端连接中...</template>
+      <template v-else-if="backendOnline">后端已连接</template>
+      <template v-else>后端未连接，请稍后刷新重试</template>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 
 const input = ref('')
 const loading = ref(false)
 const streamingText = ref('')
 const backendOnline = ref(false)
+const backendChecking = ref(true)
 const messages = ref([])
 const msgContainer = ref(null)
+
+onMounted(async () => {
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const res = await fetch(`${apiUrl}/api/health`)
+    if (res.ok) {
+      backendOnline.value = true
+    }
+  } catch {
+    backendOnline.value = false
+  } finally {
+    backendChecking.value = false
+  }
+})
 
 const scrollToBottom = () => {
   nextTick(() => {

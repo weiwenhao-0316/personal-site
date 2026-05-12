@@ -35,6 +35,11 @@ client = OpenAI(
 MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
 
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
 class ChatRequest(BaseModel):
     messages: list[dict]
 
