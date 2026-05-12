@@ -2,8 +2,8 @@
   <div class="home">
     <!-- Hero -->
     <section class="hero">
-      <p class="greeting">Hey，我是</p>
-      <h1 class="name">松蒿<span class="dot">。</span></h1>
+      <p class="greeting">你好，我是</p>
+      <h1 class="name">魏文兵<span class="dot">。</span></h1>
       <p class="intro">
         一个在学编程的学生，喜欢把学到的东西做成工具。<br />
         这里记录成长、分享好用的东西，还有一个能聊天的 AI。
@@ -26,7 +26,7 @@
           <span class="toc-num">02</span>
           <span class="toc-body">
             <span class="toc-title">工具集</span>
-            <span class="toc-desc">备考资料生成、数学手册等实用小工具</span>
+            <span class="toc-desc">西藏高考历史、政治、文综备考资料下载</span>
           </span>
           <span class="toc-arrow" aria-hidden="true">↗</span>
         </router-link>

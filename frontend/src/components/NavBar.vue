@@ -4,7 +4,7 @@
       <router-link to="/" class="logo">W</router-link>
       <div class="nav-links">
         <router-link to="/blog">成长记录</router-link>
-        <router-link to="/tools">工具集</router-link>
+        <router-link to="/tools">备考资料</router-link>
         <router-link to="/chat">AI 聊天</router-link>
         <router-link to="/projects">项目</router-link>
       </div>
