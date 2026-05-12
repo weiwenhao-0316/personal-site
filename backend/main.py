@@ -11,13 +11,17 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+origins = os.getenv("CORS_ORIGINS", "")
+allow_origins = origins.split(",") if origins else [
+    "http://localhost:5173",
+    "https://haoriver.site",
+    "https://www.haoriver.site",
+    "https://frontend-nu-three-68.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://haoriver.site",
-        "https://www.haoriver.site",
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
