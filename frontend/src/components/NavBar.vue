@@ -7,6 +7,7 @@
         <router-link to="/tools">备考资料</router-link>
         <router-link to="/chat">AI 聊天</router-link>
         <router-link to="/projects">项目</router-link>
+        <router-link to="/vault">仓库</router-link>
       </div>
     </div>
   </nav>
