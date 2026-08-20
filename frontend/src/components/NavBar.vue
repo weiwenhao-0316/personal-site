@@ -1,83 +1,145 @@
 <template>
   <nav class="navbar">
-    <div class="nav-inner">
-      <router-link to="/" class="logo">W</router-link>
-      <div class="nav-links">
-        <router-link to="/blog">成长记录</router-link>
-        <router-link to="/tools">备考资料</router-link>
-        <router-link to="/chat">AI 聊天</router-link>
-        <router-link to="/projects">项目</router-link>
-        <router-link to="/vault">仓库</router-link>
-      </div>
+    <router-link to="/" class="brand" aria-label="回到首页">
+      <span class="brand-mark">H</span>
+      <span class="brand-copy">
+        <strong>Hao River</strong>
+        <small>Personal Garden</small>
+      </span>
+    </router-link>
+
+    <div class="nav-links">
+      <router-link v-for="item in navItems" :key="item.path" :to="item.path">
+        {{ item.label }}
+      </router-link>
     </div>
   </nav>
 </template>
 
 <script setup>
+const navItems = [
+  { path: '/', label: '首页' },
+  { path: '/collection', label: '收藏' },
+  { path: '/notes', label: '笔记' },
+  { path: '/projects', label: '项目' },
+  { path: '/library', label: '资料库' },
+  { path: '/vault', label: '仓库' },
+]
 </script>
 
 <style scoped>
 .navbar {
   position: sticky;
-  top: 0;
+  top: 16px;
   z-index: 100;
-  background: rgba(241, 238, 234, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.nav-inner {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 0 24px;
-  height: 56px;
+  width: min(1480px, calc(100% - 48px));
+  height: 68px;
+  margin: 16px auto 0;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  border: 1px solid rgba(88, 103, 87, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: 0 12px 42px rgba(50, 61, 48, 0.08);
+  backdrop-filter: blur(26px) saturate(1.2);
+  -webkit-backdrop-filter: blur(26px) saturate(1.2);
 }
 
-.logo {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
+.brand {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 16px;
+  gap: 10px;
+  min-width: 184px;
+  color: inherit;
   text-decoration: none;
-  transition: background 0.2s, transform 0.2s;
-}
-.logo:hover {
-  background: var(--accent-hover);
-  transform: scale(1.05);
 }
 
-.nav-links { display: flex; gap: 4px; }
+.brand-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.45), transparent 28%),
+    linear-gradient(135deg, var(--accent-deep), var(--accent-warm));
+  box-shadow: 0 12px 30px rgba(65, 111, 107, 0.22);
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-copy strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.brand-copy small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav-links::-webkit-scrollbar {
+  display: none;
+}
 
 .nav-links a {
-  padding: 7px 16px;
-  border-radius: 8px;
+  flex: 0 0 auto;
+  padding: 10px 15px;
+  border-radius: 999px;
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-.nav-links a:hover {
-  color: var(--text-primary);
-  background: rgba(212, 93, 58, 0.06);
-}
-.nav-links a.router-link-active {
-  color: var(--accent);
-  background: var(--accent-soft);
+  font-weight: 700;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
-@media (max-width: 600px) {
-  .nav-links a { padding: 6px 10px; font-size: 13px; }
+.nav-links a:hover {
+  color: var(--accent-deep);
+  background: rgba(111, 157, 152, 0.09);
+  transform: translateY(-0.5px);
+}
+
+.nav-links a.router-link-active {
+  color: #fff;
+  background: var(--accent-deep);
+  box-shadow: 0 8px 20px rgba(65, 111, 107, 0.16);
+}
+
+@media (max-width: 760px) {
+  .navbar {
+    width: calc(100% - 20px);
+    height: auto;
+    align-items: flex-start;
+    border-radius: 28px;
+    flex-direction: column;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .nav-links {
+    width: 100%;
+  }
 }
 </style>
