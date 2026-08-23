@@ -9,7 +9,15 @@ from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from pydantic import BaseModel
 
-app = FastAPI()
+# 【第3关改动1】docs_url="/api/docs"：
+# FastAPI 自带接口测试页面（Swagger），默认在 /docs，
+# 但你的 Nginx 只把 /api 开头的请求转发给后端，
+# 所以把测试页挪到 /api/docs 下，线上才能访问到。
+app = FastAPI(
+    docs_url="/api/docs",
+    redoc_url=None,
+    openapi_url="/api/openapi.json",
+)
 
 origins = os.getenv("CORS_ORIGINS", "")
 allow_origins = origins.split(",") if origins else [
@@ -26,6 +34,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 【第3关改动2】注册收藏接口：
+# 把 collections_api.py 里的 4 个接口挂到 app 上，
+# 从此 /api/collections 就存在了。
+from collections_api import router as collections_router
+
+app.include_router(collections_router)
 
 client = OpenAI(
     api_key=os.getenv("DEEPSEEK_API_KEY", "sk-placeholder"),
@@ -57,6 +72,7 @@ async def chat(req: ChatRequest):
             if chunk.choices[0].delta.content:
                 yield f"data: {chunk.choices[0].delta.content}\n\n"
         yield "data: [DONE]\n\n"
+
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
