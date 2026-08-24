@@ -5,7 +5,7 @@
       <h1>收藏</h1>
       <p>
         像 B 站收藏夹一样存视频、文章和网页，但每一条都带着你的标签、时间和批注。
-        这一版先支持本地新增、编辑、删除和分类筛选。
+        这一版数据存储在服务器数据库中，换设备也能看到。
       </p>
     </header>
 
@@ -120,7 +120,7 @@
 
             <div class="form-actions">
               <button type="button" class="ghost-btn" @click="closeForm">取消</button>
-              <button type="submit" class="save-btn">{{ editingId ? '保存修改' : '添加收藏' }}</button>
+              <button type="submit" class="save-btn" :disabled="saving">{{ saving ? '保存中...' : (editingId ? '保存修改' : '添加收藏') }}</button>
             </div>
           </form>
         </div>
@@ -134,7 +134,10 @@ import { computed, reactive, ref } from 'vue'
 import { useCollectionStore } from '../composables/useCollectionStore.js'
 
 const store = useCollectionStore()
-const items = ref(store.list())
+// 【第5关改动】数据不再从 localStorage 同步读取：
+// 默认空列表，页面加载后从服务器接口异步获取，并增加"保存中"状态
+const items = ref([])
+const saving = ref(false)
 const activeCategory = ref('全部')
 const formOpen = ref(false)
 const editingId = ref('')
@@ -159,6 +162,17 @@ const filteredItems = computed(() => {
   if (activeCategory.value === '全部') return items.value
   return items.value.filter(item => item.category === activeCategory.value)
 })
+
+// 【第5关改动】异步拉取收藏列表（网络请求需要时间，必须 await 等待）
+async function loadItems() {
+  try {
+    items.value = await store.list()
+  } catch (err) {
+    window.alert(`收藏数据获取失败：${err.message}`)
+  }
+}
+// 页面加载时先拉一次数据
+loadItems()
 
 function resetForm() {
   Object.assign(form, {
@@ -214,25 +228,38 @@ function normalizePayload() {
   }
 }
 
-function saveItem() {
+// 【第5关改动】改为异步：等服务器写入完成，再重新拉列表刷新页面
+async function saveItem() {
   const payload = normalizePayload()
-  if (editingId.value) {
-    store.update(editingId.value, payload)
-  } else {
-    store.create(payload)
+  saving.value = true
+  try {
+    if (editingId.value) {
+      await store.update(editingId.value, payload)
+    } else {
+      await store.create(payload)
+    }
+    await loadItems()
+    if (!categories.value.includes(activeCategory.value)) activeCategory.value = '全部'
+    closeForm()
+  } catch (err) {
+    window.alert(`保存失败：${err.message}`)
+  } finally {
+    saving.value = false
   }
-  items.value = store.list()
-  if (!categories.value.includes(activeCategory.value)) activeCategory.value = '全部'
-  closeForm()
 }
 
-function removeItem(item) {
+// 【第5关改动】删除也改成异步：先在服务器删掉，再刷新列表
+async function removeItem(item) {
   const confirmed = window.confirm(`确定删除「${item.title}」吗？`)
   if (!confirmed) return
 
-  store.remove(item.id)
-  items.value = store.list()
-  if (!categories.value.includes(activeCategory.value)) activeCategory.value = '全部'
+  try {
+    await store.remove(item.id)
+    await loadItems()
+    if (!categories.value.includes(activeCategory.value)) activeCategory.value = '全部'
+  } catch (err) {
+    window.alert(`删除失败：${err.message}`)
+  }
 }
 </script>
 
