@@ -6,26 +6,43 @@
   box-sizing: border-box;
 }
 
+/* 设计系统：燕麦鼠尾草（清新 + 温暖 + 治愈）
+   调整配色/阴影只需改这里，所有页面通过 var(--xxx) 自动继承 */
 :root {
-  --bg: #eef2ec;
-  --surface: rgba(255, 255, 255, 0.64);
-  --surface-strong: rgba(255, 255, 255, 0.82);
-  --surface-muted: rgba(247, 241, 230, 0.72);
-  --text-primary: #202520;
-  --text-secondary: #50584f;
-  --text-tertiary: #7b8377;
-  --accent: #6f9d98;
-  --accent-deep: #416f6b;
-  --accent-warm: #c98f70;
-  --accent-soft: rgba(111, 157, 152, 0.14);
-  --border: rgba(88, 103, 87, 0.18);
-  --border-light: rgba(88, 103, 87, 0.12);
-  --shadow-sm: 0 8px 24px rgba(50, 61, 48, 0.045);
-  --shadow-md: 0 18px 54px rgba(50, 61, 48, 0.095);
-  --shadow-lg: 0 26px 82px rgba(50, 61, 48, 0.13);
+  /* 底色与面板 */
+  --bg: #F6F4EE;
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-strong: #FFFFFF;
+  --surface-muted: rgba(246, 244, 238, 0.78);
+
+  /* 文字三级层次 */
+  --text-primary: #2B332E;
+  --text-secondary: #7C8579;
+  --text-tertiary: #98a096;
+
+  /* 强调色：鼠尾草绿为主，暖陶土色点缀 */
+  --accent: #6F9D98;
+  --accent-deep: #416F6B;
+  --accent-warm: #C98F70;
+  --accent-soft: rgba(111, 157, 152, 0.12);
+
+  /* 边框是偏暖的沙色，比灰色边框柔和 */
+  --border: #E7E4D9;
+  --border-light: #EEECE2;
+
+  /* 阴影收敛为"轻浮投影"，悬停时才加深 —— 苹果风的关键分寸感 */
+  --shadow-card: 0 4px 14px rgba(80, 100, 90, 0.08);
+  --shadow-card-hover: 0 10px 28px rgba(80, 100, 90, 0.14);
+  --shadow-sm: var(--shadow-card);
+  --shadow-md: var(--shadow-card-hover);
+  --shadow-lg: 0 22px 56px rgba(80, 100, 90, 0.18);
+
+  /* 圆角 */
   --radius: 18px;
-  --radius-lg: 30px;
+  --radius-card: 14px;
+  --radius-lg: 20px;
   --radius-xl: 42px;
+
   --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
   --font-body: "DM Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
@@ -40,10 +57,10 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% 8%, rgba(255, 232, 195, 0.82), transparent 30%),
-    radial-gradient(circle at 88% 10%, rgba(165, 204, 199, 0.72), transparent 32%),
-    radial-gradient(circle at 50% 95%, rgba(200, 217, 162, 0.44), transparent 34%),
-    linear-gradient(135deg, #f5efe4 0%, #eaf1ed 48%, #f7f1e8 100%);
+    radial-gradient(circle at 12% 8%, rgba(255, 236, 204, 0.65), transparent 30%),
+    radial-gradient(circle at 88% 10%, rgba(168, 197, 191, 0.55), transparent 32%),
+    radial-gradient(circle at 50% 95%, rgba(201, 216, 192, 0.38), transparent 34%),
+    linear-gradient(135deg, #F8F5EC 0%, #F0F3EC 48%, #F7F3E9 100%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
@@ -112,13 +129,13 @@ a {
 .app::before {
   left: -12vw;
   top: 18vh;
-  background: rgba(216, 160, 124, 0.38);
+  background: rgba(217, 195, 178, 0.36);
 }
 
 .app::after {
   right: -14vw;
   bottom: -12vw;
-  background: rgba(111, 157, 152, 0.42);
+  background: rgba(168, 197, 191, 0.4);
   animation-delay: -5s;
 }
 
@@ -244,21 +261,29 @@ a {
   overflow-x: auto;
 }
 
+/* 分类筛选胶囊：未选中 = 白底浅影；选中 = 实心强调色（B 站 tab 风格） */
 .filter,
 .add-button {
   border: none;
   border-radius: 999px;
   padding: 10px 16px;
   color: var(--text-secondary);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
 }
 
-.filter.active,
 .filter:hover {
   color: var(--accent-deep);
-  background: rgba(111, 157, 152, 0.14);
+  transform: translateY(-1px);
+}
+
+.filter.active {
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 6px 16px rgba(111, 157, 152, 0.32);
 }
 
 .add-button {

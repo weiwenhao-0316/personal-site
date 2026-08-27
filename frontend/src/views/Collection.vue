@@ -4,8 +4,8 @@
       <p class="eyebrow">Collection</p>
       <h1>收藏</h1>
       <p>
-        像 B 站收藏夹一样存视频、文章和网页，但每一条都带着你的标签、时间和批注。
-        这一版数据存储在服务器数据库中，换设备也能看到。
+        像 B 站收藏夹一样存视频、文章和网页。数据存在服务器数据库中，换设备也能看到；
+        不填封面时会自动抓取链接页面的题图。
       </p>
     </header>
 
@@ -22,36 +22,48 @@
       <button class="add-button" @click="openCreate">添加收藏</button>
     </div>
 
-    <div class="video-grid" v-if="filteredItems.length">
-      <article
-        v-for="item in filteredItems"
-        :key="item.id"
-        class="video-card"
-      >
-        <a class="cover" :href="item.url" target="_blank" rel="noreferrer" :style="{ background: item.cover }">
-          <span class="platform">{{ item.platform }}</span>
-          <span class="play">打开</span>
+    <!-- 纯 B 站风卡片：大封面 + 两行标题 + 平台·时间。
+         编辑/删除平时隐藏，悬停卡片才浮现；标签、批注、状态收进编辑弹窗。 -->
+    <TransitionGroup
+      tag="div"
+      name="cd-fade"
+      class="cd-grid"
+      v-if="filteredItems.length"
+    >
+      <article v-for="item in filteredItems" :key="item.id" class="cd-card">
+        <a
+          class="cd-cover"
+          :href="item.url"
+          target="_blank"
+          rel="noreferrer"
+          tabindex="-1"
+        >
+          <img
+            v-if="!isGradientCover(item.cover)"
+            :src="item.cover"
+            :alt="item.title"
+            loading="lazy"
+          />
+          <span v-else class="cd-cover-fallback" :style="{ background: item.cover }"></span>
+          <span class="cd-platform">{{ item.platform }}</span>
+
+          <!-- 悬停浮现的操作按钮，浮在封面上层 -->
+          <span class="cd-actions" @click.prevent.stop>
+            <button type="button" title="编辑" @click="openEdit(item)">编辑</button>
+            <button type="button" class="danger" title="删除" @click="removeItem(item)">删除</button>
+          </span>
         </a>
-        <div class="video-body">
-          <div class="meta-row">
-            <span>{{ item.category }}</span>
-            <time>{{ item.createdAt }}</time>
-          </div>
+        <a
+          class="cd-info"
+          :href="item.url"
+          target="_blank"
+          rel="noreferrer"
+        >
           <h2>{{ item.title }}</h2>
-          <p>{{ item.note || '还没有批注。' }}</p>
-          <div class="tags" v-if="item.tags.length">
-            <span v-for="tag in item.tags" :key="tag">{{ tag }}</span>
-          </div>
-          <div class="card-footer">
-            <span class="status">{{ item.status }}</span>
-            <div class="card-actions">
-              <button @click="openEdit(item)">编辑</button>
-              <button class="danger" @click="removeItem(item)">删除</button>
-            </div>
-          </div>
-        </div>
+          <p>{{ item.platform }} · {{ relativeTime(item.createdAt) }}</p>
+        </a>
       </article>
-    </div>
+    </TransitionGroup>
 
     <div class="empty-state glass-panel" v-else>
       <h2>这个分类还没有内容</h2>
@@ -110,7 +122,7 @@
 
             <label>
               <span>封面图片地址，可选</span>
-              <input v-model="form.cover" placeholder="不填会自动生成渐变封面" />
+              <input v-model="form.cover" placeholder="不填将自动抓取链接页面的封面" />
             </label>
 
             <label>
@@ -162,6 +174,25 @@ const filteredItems = computed(() => {
   if (activeCategory.value === '全部') return items.value
   return items.value.filter(item => item.category === activeCategory.value)
 })
+
+// 封面为空或本来就是兜底渐变时，说明没有真实图片
+function isGradientCover(cover) {
+  return !cover || cover.startsWith('linear-gradient')
+}
+
+// 相对时间：今天 / 昨天 / N天前 / N周前 / 超过一年直接显示日期
+function relativeTime(dateStr) {
+  if (!dateStr) return ''
+  const time = new Date(`${dateStr}T00:00:00`)
+  if (Number.isNaN(time.getTime())) return dateStr
+  const days = Math.floor((Date.now() - time.getTime()) / 86400000)
+  if (days <= 0) return '今天'
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days}天前`
+  if (days < 30) return `${Math.floor(days / 7)}周前`
+  if (days < 365) return `${Math.floor(days / 30)}个月前`
+  return dateStr
+}
 
 // 【第5关改动】异步拉取收藏列表（网络请求需要时间，必须 await 等待）
 async function loadItems() {
@@ -264,38 +295,158 @@ async function removeItem(item) {
 </script>
 
 <style scoped>
-.card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+/* ---------- 卡片网格：自适应列数，手机上自动变两列/一列 ---------- */
+.cd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
 }
 
-.card-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 18px;
+/* 筛选切换时卡片的淡入淡出（配合 TransitionGroup） */
+.cd-fade-enter-active,
+.cd-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.card-actions button,
-.ghost-btn,
-.save-btn {
+.cd-fade-enter-from,
+.cd-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.cd-fade-leave-active {
+  position: absolute;
+  visibility: hidden;
+}
+
+/* ---------- 卡片本体：纯白卡面 + 大封面 + 两行标题 + 平台·时间 ---------- */
+.cd-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-strong);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* 苹果风微动效：上浮 + 阴影加深，封面对应微放大 */
+.cd-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.cd-card:hover .cd-cover img,
+.cd-card:hover .cd-cover .cd-cover-fallback {
+  transform: scale(1.03);
+}
+
+.cd-cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--surface-muted);
+}
+
+.cd-cover img,
+.cd-cover .cd-cover-fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.cd-cover-fallback {
+  display: block;
+}
+
+/* 平台角标：左上角半透明胶囊，跟 B 站的清晰度角标一个位置 */
+.cd-platform {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(43, 51, 46, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+/* 编辑/删除按钮：平时完全隐藏，悬停整张卡片才浮现 */
+.cd-actions {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cd-card:hover .cd-actions,
+.cd-actions:focus-within {
+  opacity: 1;
+}
+
+.cd-actions button {
   border: none;
   border-radius: 999px;
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.card-actions button {
-  color: var(--accent-deep);
-  background: rgba(111, 157, 152, 0.12);
-  padding: 7px 11px;
+  padding: 6px 12px;
   font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(65, 111, 107, 0.88);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.2s ease;
 }
 
-.card-actions .danger {
-  color: #9b4d42;
-  background: rgba(201, 143, 112, 0.16);
+.cd-actions button:hover {
+  background: var(--accent-deep);
+}
+
+.cd-actions .danger {
+  background: rgba(201, 143, 112, 0.92);
+}
+
+.cd-actions .danger:hover {
+  background: #a86f4e;
+}
+
+/* ---------- 标题与元信息 ---------- */
+.cd-info {
+  display: block;
+  padding: 12px 14px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cd-info h2 {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+
+  /* 只显示两行，超出截断成省略号 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(1.45em * 2);
+}
+
+.cd-info p {
+  margin-top: 7px;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
 .empty-state {
@@ -432,11 +583,6 @@ async function removeItem(item) {
 @media (max-width: 620px) {
   .form-grid {
     grid-template-columns: 1fr;
-  }
-
-  .card-footer {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 </style>

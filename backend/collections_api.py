@@ -9,10 +9,13 @@
 
 import json
 import os
+import re
 import uuid
 from datetime import date
+from urllib.parse import urljoin
 
 import pymysql
+import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -58,6 +61,54 @@ def row_to_item(row):
     return row
 
 
+# ---------- 第 1.5 部分：封面自动抓取 ----------
+
+# 目标页面的服务器会拒绝"没有浏览器标识"的请求（403 反爬），
+# 所以带上一个普通的浏览器 User-Agent 伪装成正常访问。
+FETCH_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+)
+
+# og:image 的 content 可以写在 property 前面或后面、可以用单引号或双引号，
+# 所以这里写了两个方向的正则。og:image:url 是老写法，一并兼容。
+_OG_IMAGE_PATTERNS = (
+    re.compile(r'<meta[^>]+property=["\']og:image(?:\:url)?["\'][^>]*content=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\']og:image(?:\:url)?["\']', re.I),
+)
+
+
+def fetch_cover(url: str) -> str:
+    """
+    抓取链接页面的 og:image 作为收藏封面。
+    原则：绝不让保存失败 —— 超时、反爬、没有题图……任何异常都返回空字符串，
+    由前端显示渐变兜底封面。
+    timeout=2 表示总超时上限 2 秒，不能让用户点"保存"等太久。
+    """
+    try:
+        resp = requests.get(
+            url,
+            headers={"User-Agent": FETCH_UA},
+            timeout=2,
+            allow_redirects=True,  # b23.tv 等短链要跟随跳转才能到正文页
+        )
+        html = resp.text[:100_000]  # og:meta 都在页面头部，读前 10 万字符足够
+        for pattern in _OG_IMAGE_PATTERNS:
+            match = pattern.search(html)
+            if not match:
+                continue
+            src = (match.group(1) or "").strip()
+            if src.startswith("//"):            # 协议相对地址 //xxx.com/a.jpg
+                src = "https:" + src
+            elif src.startswith("/"):           # 相对地址 /a.jpg
+                src = urljoin(resp.url, src)
+            if src.lower().startswith(("http://", "https://")):
+                return src
+        return ""
+    except Exception:
+        return ""
+
+
 # ---------- 第 2 部分：数据校验模型 ----------
 
 class CollectionPayload(BaseModel):
@@ -95,6 +146,9 @@ def list_collections():
 def create_collection(payload: CollectionPayload):
     """【增】POST /api/collections —— 新增一条收藏"""
     new_id = str(uuid.uuid4())  # UUID：全球唯一的随机 ID，不用担心重复
+    # 封面为空且是正常网页链接时，后端同步抓取 og:image（最多等 2 秒，失败也不影响保存）
+    if not payload.cover and payload.url.startswith(("http://", "https://")):
+        payload.cover = fetch_cover(payload.url)
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -117,6 +171,8 @@ def create_collection(payload: CollectionPayload):
 @router.put("/collections/{item_id}")
 def update_collection(item_id: str, payload: CollectionPayload):
     """【改】PUT /api/collections/某个id —— 全量更新这条收藏"""
+    if not payload.cover and payload.url.startswith(("http://", "https://")):
+        payload.cover = fetch_cover(payload.url)
     conn = get_db()
     try:
         with conn.cursor() as cur:

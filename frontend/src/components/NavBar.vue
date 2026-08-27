@@ -40,10 +40,10 @@ const navItems = [
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border: 1px solid rgba(88, 103, 87, 0.16);
+  border: 1px solid var(--border-light);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.48);
-  box-shadow: 0 12px 42px rgba(50, 61, 48, 0.08);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(26px) saturate(1.2);
   -webkit-backdrop-filter: blur(26px) saturate(1.2);
 }

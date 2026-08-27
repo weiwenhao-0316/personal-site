@@ -7,22 +7,33 @@
 const apiUrl = import.meta.env.VITE_API_URL || ''
 const BASE = `${apiUrl}/api/collections`
 
-// 封面渐变预设：数据库里 cover 为空时，按顺序自动分配一个渐变背景（和旧版行为一致）
+// 兜底渐变预设：数据库里 cover 为空时，按收藏 id 哈希固定分配一条。
+// 用 id 而不是列表下标，是因为下标会随增删变化，同一收藏的颜色就会跳来跳去；
+// 哈希后颜色与内容绑定，每次刷新都稳定一致。
 const coverPresets = [
-  'linear-gradient(135deg, #9cc9c4 0%, #e7d9c9 55%, #f7f2e9 100%)',
-  'linear-gradient(135deg, #e2a98a 0%, #f2dcc6 48%, #edf4ef 100%)',
-  'linear-gradient(135deg, #b8bf96 0%, #f0e6c8 52%, #ffffff 100%)',
-  'linear-gradient(135deg, #9aaed1 0%, #dce6ee 48%, #f7f1e7 100%)',
+  'linear-gradient(135deg, #A8C5BF, #6F9D98)',
+  'linear-gradient(135deg, #C9D8C0, #8FAF8B)',
+  'linear-gradient(135deg, #D9C3B2, #C98F70)',
+  'linear-gradient(135deg, #F3D9B8, #D9A05B)',
 ]
 
+function pickCoverPreset(id) {
+  const text = String(id || '')
+  let hash = 0
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0
+  }
+  return coverPresets[hash % coverPresets.length]
+}
+
 // 把后端返回的一条数据"规整"成页面需要的样子（缺字段就补默认值）
-function normalizeItem(item, index = 0) {
+function normalizeItem(item) {
   return {
     id: item.id,
     platform: item.platform || 'Web',
     title: item.title || '未命名收藏',
     url: item.url || '#',
-    cover: item.cover || coverPresets[index % coverPresets.length],
+    cover: item.cover || pickCoverPreset(item.id),
     category: item.category || '未分类',
     tags: Array.isArray(item.tags) ? item.tags : [],
     note: item.note || '',
