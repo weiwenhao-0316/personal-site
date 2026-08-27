@@ -1,156 +1,102 @@
-# AI 开发提示词（项目上下文，给 AI 助手用）
+# AI 开发提示词（项目上下文 + 协作纪律）
 
-> 使用方法：打开 AI 编程助手（Qoder / Claude Code 等），将下面 ``` 内的内容整段粘贴，AI 即可接手。
-> 最后更新：2026-08-25。本文档内容已与源代码核对一致；部署原理与历史操作细节见 `docs/server-deploy-guide.md`。
+> 使用方法：在任何 AI 编程工具（ZCode / Codex / Cursor / 网页版助手）开始新任务前，将下面 ``` 内的内容整段粘贴。
+> 在 ZCode 中使用时可只粘「第三部分：工作纪律」，因为项目背景 ZCode 会自动读取 AGENTS.md。
+> 最后更新：2026-08-27。排错历史见 `docs/troubleshooting-qa.md`，部署细节见 `docs/server-deploy-guide.md`。
 
 ---
 
 ## 直接粘贴以下内容：
 
 ```
-我正在维护一个已部署上线的个人网站，需要你作为开发 + 部署助手。以下是项目完整上下文，请仔细阅读后确认理解，然后问我想做什么。请用中文交流。
+我正在迭代一个已上线的个人网站，你担任我的开发搭档。请用中文交流，
+遵守本文全部约定后再开始任务。
 
-## 项目概况
+═══════════ 第一部分：项目速览 ═══════════
 
-- 网站：haoriver.site（腾讯云域名，已备案，DNS A 记录 @ 和 www 均指向阿里云服务器 120.77.2.164）
-- 服务器：阿里云 2核2G（实际约 1.6G 可用内存），Ubuntu，宝塔面板管理，通过 FinalShell（SSH）操作
-- 已安装：宝塔、Nginx（含 Let's Encrypt SSL）、Python 项目管理器、MySQL、Node.js 20
-- GitHub：weiwenhao-0316/personal-site，服务器用 HTTPS 方式拉取
+【架构】浏览器 → Nginx(443) → 静态走 frontend/dist；
+        /api 开头反代到 FastAPI(127.0.0.1:8000) → MySQL(库 haoriver)
+【前端】Vue3 + Vite + vue-router；页面在 src/views/，数据逻辑在
+        src/composables/，全局设计 tokens 在 src/style.css 的 :root
+【后端】FastAPI + PyMySQL + DeepSeek；入口 backend/main.py；
+        接口按功能拆文件（范本 backend/collections_api.py）
+【部署】阿里云ECS+宝塔；仓库 github.com/weiwenhao-0316/personal-site；
+        服务器用镜像拉取：git pull https://gh-proxy.com/https://github.com/weiwenhao-0316/personal-site.git master
 
-## 技术架构与数据链路
+【接口清单】
+GET  /api/health                 健康检查
+POST /api/chat                   DeepSeek 聊天(SSE 流式)
+GET/POST     /api/collections    收藏查/增(空封面自动抓og:image或B站官方API)
+PUT/DELETE   /api/collections/{id}  收藏改/删(同样自动抓封面)
+【环境变量】backend/.env：DEEPSEEK_* 三项 + DB_HOST/DB_PORT/DB_USER/
+DB_PASSWORD/DB_NAME + CORS_ORIGINS + PORT
 
-浏览器 → Nginx(443) → 静态请求走 frontend/dist；/api 开头的请求反向代理到 FastAPI(127.0.0.1:8000) → MySQL（库 haoriver）
+【硬性约定】
+1. 所有后端接口必须以 /api 开头（Nginx 只转发 /api）
+2. SQL 一律参数占位符 %s，禁止字符串拼接；连接 try/finally 里 close
+3. 数据库字段下划线命名 ↔ 前端驼峰，转换在后端 row_to_item 做
+4. 新接口按功能建独立文件用 APIRouter(prefix="/api")，main.py 里注册；
+   模板照抄 collections_api.py（注意 get_db 里已带 CLIENT.FOUND_ROWS，
+   目的：让 UPDATE 返回匹配行数而非变化行数，避免未修改内容的保存被误判404）
+5. 前端新页面放 src/views 并在 router/index.js 注册；调接口逻辑进
+   src/composables；样式只用 style.css 的 var(--xxx)，不写死色值
+6. 注释一律中文、写给新手看、解释为什么；密钥只在 .env 绝不入库
+7. frontend/dist、frontend/public/exam 是禁区不可删改提交
 
-- 前端：Vue 3 + Vite + Vue Router（history 模式，Nginx 已配 try_files 兜底，刷新不 404）
-- 后端：FastAPI + PyMySQL + DeepSeek API，由宝塔 Python 项目管理器运行（项目名 haoriver-backend，systemd 服务，监听 127.0.0.1:8000）
-- 数据库：MySQL，库名 haoriver，已有表 collections（收藏）
-- 注意：线上没有 api 子域名，API 走同源 /api 反向代理
+═══════════ 第二部分：已知地形（踩过的坑速查） ═══════════
 
-## 目录结构
+· 宝塔 Python 项目跑在独立虚拟环境里，装新依赖必须用 venv 自己的 pip：
+  /www/wwwroot/haoriver/personal-site/backend/e778d61ae403fbb16e643ebfd764d320_venv/bin/pip install 包名 -i https://pypi.tuna.tsinghua.edu.cn/simple
+· B站主站拦截机房IP(412)，抓封面走官方API(api.bilibili.com/x/web-interface/view?bvid=BV号取data.pic)；B站图床有Referer防盗链(带外部来源403)，图片标签必须 referrerpolicy="no-referrer"，http图片地址一律升级https再入库
+· 表字段容量：url/cover VARCHAR(2048)、title VARCHAR(500)，B站分享链接很长勿缩回255
+· 宝塔面板"重启"可能杀不掉 uvicorn 重载器家族进程，表现为行为不变；
+  彻底方案：pkill -f "main.py"; pkill -f "spawn_main" 后手动 nohup 拉起，
+  或阿里云控制台重启服务器
+· 详细案例与解法全文见仓库 docs/troubleshooting-qa.md（17问答录）
 
-```
-personal-site/
-├── frontend/                        # Vue 3 前端（主要开发区域）
-│   ├── src/
-│   │   ├── main.js                  # Vue 入口
-│   │   ├── App.vue                  # 根组件：NavBar + <router-view>
-│   │   ├── style.css                # 全局样式 + :root CSS 变量（设计系统）
-│   │   ├── components/
-│   │   │   └── NavBar.vue           # 顶部导航栏
-│   │   ├── composables/
-│   │   │   ├── useCollectionStore.js  # 收藏：调后端 /api/collections（已接 MySQL）
-│   │   │   ├── useNotesStore.js       # 笔记：浏览器本地存储
-│   │   │   ├── useLibraryStore.js     # 文件库：浏览器本地存储
-│   │   │   ├── useVault.js            # 仓库：IndexedDB
-│   │   │   └── useWallpaperStore.js   # 壁纸：浏览器本地存储
-│   │   ├── data/
-│   │   │   └── siteContent.js       # 站点内容数据
-│   │   ├── router/
-│   │   │   └── index.js             # 路由（见下表）
-│   │   └── views/
-│   │       ├── Home.vue             # 首页
-│   │       ├── Collection.vue       # 收藏（已接 MySQL）
-│   │       ├── Notes.vue            # 笔记
-│   │       ├── Library.vue          # 文件库
-│   │       ├── Chat.vue             # AI 对话（DeepSeek，SSE 流式）
-│   │       ├── Projects.vue         # 项目展示
-│   │       └── Vault.vue            # 文件仓库（IndexedDB）
-│   ├── public/exam/                 # 备考资料 docx 文件（体积大，勿删）
-│   ├── .env                         # 本地开发：VITE_API_URL=http://localhost:8000
-│   ├── .env.production              # 生产：VITE_API_URL=https://haoriver.site（同源，不是 api 子域）
-│   └── dist/                        # 构建产物，Nginx 站点根目录指向这里
-├── backend/
-│   ├── main.py                      # FastAPI 主文件：/api/health、/api/chat、注册 collections 路由
-│   ├── collections_api.py           # 收藏 CRUD 四接口（GET/POST/PUT/DELETE /api/collections）
-│   ├── requirements.txt             # fastapi, uvicorn, openai, python-dotenv, pymysql
-│   └── .env.example                 # 环境变量模板
-├── docs/
-│   └── server-deploy-guide.md       # 宝塔部署详细指南（部署疑问先查这里）
-└── .qoder/skills/baota-deploy/      # 部署经验 Skill
-```
+═══════════ 第三部分：工作纪律（每条都为"高效少错"服务） ═══════════
 
-## 页面路由表（以 router/index.js 为准）
+1.【方案先行】动手前先用 3~5 行复述我的需求 + 列出将改动的文件清单和
+   顺序，等我确认。只有小改文案类可跳过此步直接做。
+2.【小步快跑】一次只做一小步，做完立刻给我具体的验证方法（命令或页面
+   操作步骤），我确认通过再进行下一步。禁止一口气大范围重写。
+3.【三个门禁】任何代码改动完成时，主动逐项检查并报告结果：
+   a. cd frontend && npm run build 是否零报错（动了前端时）
+   b. 后端语法是否通过（python -c "import 文件名" 或启动测试）
+   c. 明确告诉我浏览器去哪个页面看什么效果
+4.【变更报备】凡涉及①新增第三方依赖 ②修改数据库表结构 ③修改.env约定
+   必须先停下来说明影响面、步骤和回滚方式，我点头才继续。
+5.【解释为什么】关键决策要附带一句"为什么这么选"，让我学到思路而不只是
+   拿到结果。
+6.【诚实边界】不确定的 API、语法、结论必须直说"我不确定"，禁止编造；
+   给资源一律附完整网址。
+7.【部署指引】涉及上线时按固定剧本输出：
+   push → 服务器镜像pull(git log确认) → 前端build/后端重启 → 浏览器强刷
+   → curl health 三件套验证；若本次新增了 requirements 依赖，必须在重启
+   前提醒先装。
 
-| 路由 | 页面 | 数据存储 |
-|------|------|---------|
-| / | Home 首页 | - |
-| /collection | Collection 收藏 | 服务器 MySQL（已迁移完成） |
-| /notes | Notes 笔记 | 浏览器本地 |
-| /library | Library 文件库 | 浏览器本地 |
-| /chat | Chat AI 对话 | 后端 DeepSeek SSE |
-| /projects | Projects 项目展示 | 硬编码 |
-| /vault | Vault 文件仓库 | 浏览器 IndexedDB |
-| /blog | 重定向 → /notes | - |
-| /tools | 重定向 → /library | - |
+═══════════ 第四部分：进展快照与路线图 ═══════════
 
-## 后端接口清单
+【已完成】
+✅ 视觉改造：全站燕麦鼠尾草风格(tokens已统一)，收藏页B站风卡片
+✅ 封面自动抓取：og:image + B站API兜底 + https化 + 防盗链处理
+✅ 表结构扩容、venv依赖(requests)、镜像拉取流程全部跑通
+✅ 排错方法论沉淀于 docs/troubleshooting-qa.md
 
-| 接口 | 方法 | 说明 |
-|------|------|------|
-| /api/health | GET | 健康检查，返回 {"status":"ok"} |
-| /api/collections | GET / POST | 查询全部收藏 / 新增（id 由后端 UUID 生成） |
-| /api/collections/{id} | PUT / DELETE | 更新 / 删除指定收藏 |
-| /api/chat | POST | DeepSeek 聊天，SSE 流式返回 |
-| /api/docs | GET | Swagger 接口测试页（特意挪到 /api 下，否则线上访问不到） |
+【待办路线图（按优先级）】
+P0 运维地基：a.宝塔计划任务=数据库每日自动备份 b./api/health 返回
+   当前git提交号(部署后curl一眼即知新旧代码)
+P1 数据上云：Notes笔记迁移MySQL(照抄收藏模板) → Library资料库迁移
+P2 体验完善：收藏卡片分类角标 → 列表分页(LIMIT/OFFSET) → 统一加载态
+P3 大关卡：Vault文件上传(multipart+存储方案，需先出方案评审)
 
-后端环境变量（.env）：DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME（MySQL）；DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / DEEPSEEK_MODEL；CORS_ORIGINS；PORT=8000
-
-## 设计系统（定义在 style.css :root）
-
-当前主题是清新的绿灰色系：
-
-```
---bg: #eef2ec              背景
---surface / --surface-strong / --surface-muted   半透明卡片层级
---text-primary: #202520    主文字
---text-secondary / --text-tertiary               次要/辅助文字
---accent: #6f9d98          强调色（灰绿）
---accent-deep: #416f6b     深绿
---accent-warm: #c98f70     暖色点缀
---accent-soft              浅强调背景
---border / --border-light  边框
---shadow-sm/md/lg          阴影三档
---radius: 18px / --radius-lg: 30px / --radius-xl: 42px
---font-display: Noto Serif SC（衬线）
---font-body: DM Sans + 中文回退
+【协作方式】每次会话结束前，把本次完成的内容同步更新到"已完成"清单，
+保持这份快照永远反映真实进度。现在，请向我确认理解并询问今天的任务。
 ```
 
-新页面直接引用 var(--xxx)，保持风格统一。
+---
 
-## 服务器关键路径
+### 维护说明
 
-- 项目目录：/www/wwwroot/haoriver/personal-site
-- 后端环境变量：/www/wwwroot/haoriver/personal-site/backend/.env（不走 Git，在服务器上直接改）
-- Nginx 站点配置：/www/server/panel/vhost/nginx/haoriver.site.conf
-- 站点根目录：/www/wwwroot/haoriver/personal-site/frontend/dist
-- 后端服务：宝塔 Python 项目管理器 → haoriver-backend（systemd 托管，监听 127.0.0.1:8000）
-
-## 部署流程（每次更新代码必须遵循）
-
-1. 本地：git add . → git commit -m "描述" → git push（commit 用 conventional commits 格式；冲突用 git pull --rebase 解决）
-2. 服务器 FinalShell：cd /www/wwwroot/haoriver/personal-site → git pull，并用 git log --oneline -2 确认拉到了最新提交
-3. 前端有改动 → cd frontend && npm run build；后端有改动 → 宝塔重启 Python 项目（重启前先检查 8000 端口有没有旧进程占用）
-4. git pull 网络失败 → 用镜像前缀（如 gh-proxy.com）或本地打包 dist 后上传覆盖
-5. 验证：服务器上 curl http://127.0.0.1:8000/api/health 返回 {"status":"ok"}；浏览器打开网站抽查功能
-
-## 重要注意事项
-
-1. 服务器内存小（约 1.6G），不要让 MySQL + PHP + Nginx + Python 后端之外的服务同时跑，资源耗尽会导致面板卡死（停掉无关服务可释放约 500MB）
-2. .env 含密钥，绝不在代码里写死、绝不提交 Git
-3. frontend/public/exam/ 下的 docx 文件体积大，不要随意删除
-4. 本地开发同时起前端（npm run dev，5173 端口）和后端（python main.py，8000 端口）
-5. 如不确定服务器是否为最新代码，先执行 git pull 并用 git log 验证，再做任何操作
-
-## 已知待办
-
-1. Notes / Library / Vault 数据还在浏览器本地，计划分批迁移到 MySQL（参照收藏功能的迁移方式：后端加 CRUD 接口 + 前端 store 改调接口）
-2. Projects 页面数据是硬编码的，可改为动态加载
-3. 部分页面移动端体验可继续优化
-
-## 参考资料
-
-- 部署原理、常见问题、维护命令：docs/server-deploy-guide.md
-- 部署经验 Skill：.qoder/skills/baota-deploy/SKILL.md
-
-请确认你已理解以上内容，然后告诉我今天想做什么。
-```
+- 每完成一个里程碑，让 AI 同步更新第四部分的快照，这份文档就永远是"最新战场地图"；
+- 项目结构性变化（新增表、新增页面）同时更新 `AGENTS.md`，两份文档各司其职：本文件给"AI 对话开场"，AGENTS.md 给"ZCode 自动读取的项目规范"。
