@@ -43,6 +43,7 @@
             :src="item.cover"
             :alt="item.title"
             loading="lazy"
+            referrerpolicy="no-referrer"
           />
           <span v-else class="cd-cover-fallback" :style="{ background: item.cover }"></span>
           <span class="cd-platform">{{ item.platform }}</span>

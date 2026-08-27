@@ -27,13 +27,22 @@ function pickCoverPreset(id) {
 }
 
 // 把后端返回的一条数据"规整"成页面需要的样子（缺字段就补默认值）
+// 封面字段"实质为空"的判断：空串、或本来存的就是渐变兜底值
+function isCoverMissing(cover) {
+  return !cover || cover.startsWith('linear-gradient')
+}
+
 function normalizeItem(item) {
   return {
     id: item.id,
     platform: item.platform || 'Web',
     title: item.title || '未命名收藏',
     url: item.url || '#',
-    cover: item.cover || pickCoverPreset(item.id),
+    // 老数据里可能存有 http:// 的封面地址，读取时统一升级成 https://，
+    // 避免 HTTPS 页面加载 HTTP 图片被浏览器拦成"裂图"
+    cover: isCoverMissing(item.cover)
+      ? pickCoverPreset(item.id)
+      : item.cover.replace(/^http:\/\//, 'https://'),
     category: item.category || '未分类',
     tags: Array.isArray(item.tags) ? item.tags : [],
     note: item.note || '',

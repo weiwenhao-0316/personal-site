@@ -84,6 +84,13 @@ _OG_IMAGE_PATTERNS = (
 )
 
 
+def to_https(url: str) -> str:
+    """把 http:// 开头的图片地址转成 https://。
+    网站本身是 HTTPS，页面上直接嵌 http 图片会被部分浏览器拦截（混合内容），
+    所以入库前统一升级协议。"""
+    return f"https://{url[7:]}" if url.startswith("http://") else url
+
+
 def fetch_bilibili_cover(url: str) -> str:
     """
     B 站专用兜底：主站视频页对"数据中心 IP"有反爬（直接回 412 拦截页），
@@ -101,7 +108,7 @@ def fetch_bilibili_cover(url: str) -> str:
             timeout=2,
         )
         pic = ((resp.json().get("data") or {}).get("pic")) or ""
-        return pic if pic.startswith("http") else ""
+        return to_https(pic) if pic.startswith("http") else ""
     except Exception:
         return ""
 
@@ -131,7 +138,7 @@ def fetch_cover(url: str) -> str:
             elif src.startswith("/"):           # 相对地址 /a.jpg
                 src = urljoin(resp.url, src)
             if src.lower().startswith(("http://", "https://")):
-                return src
+                return to_https(src)
         # 网页里没找到题图时，对 B 站链接再试一次官方数据接口
         # （主站拦截机房 IP，但接口一般放行，见 fetch_bilibili_cover 的说明）
         if "bilibili.com" in url or "b23.tv" in url:
