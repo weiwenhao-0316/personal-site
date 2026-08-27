@@ -42,6 +42,11 @@ from collections_api import router as collections_router
 
 app.include_router(collections_router)
 
+# 【P1数据上云】注册笔记接口：/api/notes
+from notes_api import router as notes_router
+
+app.include_router(notes_router)
+
 client = OpenAI(
     api_key=os.getenv("DEEPSEEK_API_KEY", "sk-placeholder"),
     base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
