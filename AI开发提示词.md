@@ -91,7 +91,34 @@ P2 体验完善：收藏卡片分类角标 → 列表分页(LIMIT/OFFSET) → �
 P3 大关卡：Vault文件上传(multipart+存储方案，需先出方案评审)
 
 【协作方式】每次会话结束前，把本次完成的内容同步更新到"已完成"清单，
-保持这份快照永远反映真实进度。现在，请向我确认理解并询问今天的任务。
+保持这份快照永远反映真实进度。
+
+═══════════ 第五部分：部署固定剧本 ═══════════
+
+【触发条件】用户说"上线/发布/部署"，或改动完成需要给出上线指引时。
+
+【第1段·本地侧】（AI 可代为执行，push 前确认本机代理在线）
+1. git status / git diff 核对改动范围，确认没有夹带无关文件
+2. git add . && git commit -m "feat|fix|docs|chore: 中文描述"
+3. git push origin master   ← 报连接错误时提醒用户开代理后原样重试
+
+【第2段·服务器侧】（用户在 FinalShell 手动执行，AI 负责输出完整命令块）
+4. cd /www/wwwroot/haoriver/personal-site
+5. git pull https://gh-proxy.com/https://github.com/weiwenhao-0316/personal-site.git master
+6. git log --oneline -1  ← 必须核对出现预期的那条提交
+7. 前端改动 → cd frontend && npm run build
+   ※ 若本次改了 package.json 依赖，build 前先 npm install
+8. 后端改动 → 宝塔重启 haoriver-backend
+   ※ 若重启后行为未变（疑似进程未换血），切换手动方案：
+     pkill -f "main.py"; pkill -f "spawn_main"; sleep 2
+     nohup e778d61ae403fbb16e643ebfd764d320_venv/bin/python3 main.py > /tmp/backend.log 2>&1 &
+9. 三件套验证：curl http://127.0.0.1:8000/api/health（响应含 commit 字段
+   时核对是否为目标提交）→ 浏览器 Ctrl+F5 → 核心功能点一遍
+
+【回滚预案】git log --oneline 找最后一个正常提交的编号 N，
+git checkout N . 恢复文件，然后从第 7 步重新走。
+
+现在，请向我确认理解以上全部内容，并询问今天的任务。
 ```
 
 ---

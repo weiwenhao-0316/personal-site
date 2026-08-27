@@ -50,9 +50,31 @@ client = OpenAI(
 MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
 
+def get_git_commit():
+    """
+    获取当前代码对应的 Git 提交号。
+    用途：部署后在服务器 curl 这个接口，看返回的 commit 是否为最新提交，
+    就能立刻判断"线上跑的到底是不是新代码"，不用再靠猜。
+    取不到（比如目录不是 git 仓库）时返回 unknown，不影响健康检查本身。
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),  # 定位到仓库内的 backend 目录
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return "unknown"
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "commit": get_git_commit()}
 
 
 class ChatRequest(BaseModel):
