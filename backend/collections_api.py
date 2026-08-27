@@ -15,6 +15,7 @@ from datetime import date
 from urllib.parse import urljoin
 
 import pymysql
+from pymysql.constants import CLIENT
 import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -34,6 +35,10 @@ def get_db():
     账号密码全部从环境变量读取，绝不写死在代码里 —— 这叫配置分离：
     代码可以放心传到 GitHub（人人可见），密码只存在于 .env 文件和服务器上。
     """
+    # client_flag=FOUND_ROWS 是个关键细节：
+    # MySQL 默认只统计"内容真的变了"的行数。这样"点了保存但什么都没改"时，
+    # UPDATE 会返回 0，update 接口会把它误判成"收藏不存在"报 404。
+    # 加上这个参数后，UPDATE 返回的是"匹配到几行"，语义才符合我们的预期。
     return pymysql.connect(
         host=os.getenv("DB_HOST", "127.0.0.1"),   # 数据库地址（服务器上就是本机）
         port=int(os.getenv("DB_PORT", "3306")),   # MySQL 默认端口，固定常识：3306
@@ -42,6 +47,7 @@ def get_db():
         database=os.getenv("DB_NAME", "haoriver"),# 连哪个库
         charset="utf8mb4",                        # 和建库时的字符集一致，中文不乱码
         cursorclass=pymysql.cursors.DictCursor,   # 查询结果返回字典，而不是一坨元组
+        client_flag=CLIENT.FOUND_ROWS,
     )
 
 
