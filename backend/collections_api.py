@@ -84,6 +84,28 @@ _OG_IMAGE_PATTERNS = (
 )
 
 
+def fetch_bilibili_cover(url: str) -> str:
+    """
+    B 站专用兜底：主站视频页对"数据中心 IP"有反爬（直接回 412 拦截页），
+    但官方数据接口是给程序用的，风控宽松得多。
+    从任意形态的 B 站链接里提取 BV 号（BV + 10位字母数字），调接口拿封面。
+    同样遵守铁律：任何失败返回空字符串。
+    """
+    match = re.search(r"(BV[0-9A-Za-z]{10})", url)
+    if not match:
+        return ""
+    try:
+        resp = requests.get(
+            f"https://api.bilibili.com/x/web-interface/view?bvid={match.group(1)}",
+            headers={"User-Agent": FETCH_UA, "Referer": "https://www.bilibili.com/"},
+            timeout=2,
+        )
+        pic = ((resp.json().get("data") or {}).get("pic")) or ""
+        return pic if pic.startswith("http") else ""
+    except Exception:
+        return ""
+
+
 def fetch_cover(url: str) -> str:
     """
     抓取链接页面的 og:image 作为收藏封面。
@@ -110,6 +132,10 @@ def fetch_cover(url: str) -> str:
                 src = urljoin(resp.url, src)
             if src.lower().startswith(("http://", "https://")):
                 return src
+        # 网页里没找到题图时，对 B 站链接再试一次官方数据接口
+        # （主站拦截机房 IP，但接口一般放行，见 fetch_bilibili_cover 的说明）
+        if "bilibili.com" in url or "b23.tv" in url:
+            return fetch_bilibili_cover(url)
         return ""
     except Exception:
         return ""
