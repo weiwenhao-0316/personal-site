@@ -108,7 +108,8 @@ import { reactive, ref } from 'vue'
 import { useNotesStore } from '../composables/useNotesStore.js'
 
 const store = useNotesStore()
-const notes = ref(store.list())
+// 数据现在来自服务器 MySQL，初始为空，页面挂载后异步拉取
+const notes = ref([])
 const formOpen = ref(false)
 const editingId = ref('')
 const activeNote = ref(null)
@@ -170,15 +171,26 @@ function normalizePayload() {
   }
 }
 
+async function loadNotes() {
+  try {
+    notes.value = await store.list()
+  } catch (err) {
+    window.alert(`笔记数据获取失败：${err.message}`)
+  }
+}
+loadNotes()
+
 function saveNote() {
   const payload = normalizePayload()
-  if (editingId.value) {
-    store.update(editingId.value, payload)
-  } else {
-    store.create(payload)
-  }
-  notes.value = store.list()
-  closeForm()
+  const task = editingId.value
+    ? store.update(editingId.value, payload)
+    : store.create(payload)
+  task.then(async () => {
+    await loadNotes()
+    closeForm()
+  }).catch(err => {
+    window.alert(`保存失败：${err.message}`)
+  })
 }
 
 function removeNote(note) {
@@ -186,7 +198,10 @@ function removeNote(note) {
   if (!confirmed) return
 
   store.remove(note.id)
-  notes.value = store.list()
+    .then(loadNotes)
+    .catch(err => {
+      window.alert(`删除失败：${err.message}`)
+    })
 }
 </script>
 

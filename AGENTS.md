@@ -71,12 +71,14 @@ python main.py        # 开发模式，带热重载
 
 | 方法 | 路径 | 作用 | 定义位置 |
 |------|------|------|---------|
-| GET | `/api/health` | 健康检查 | `backend/main.py` |
+| GET | `/api/health` | 健康检查（返回 status + 当前 commit 号） | `backend/main.py` |
 | POST | `/api/chat` | AI 聊天（SSE 流式） | `backend/main.py` |
 | GET/POST | `/api/collections` | 收藏 列表/新增（新增时自动抓取封面） | `backend/collections_api.py` |
 | PUT/DELETE | `/api/collections/{id}` | 收藏 改/删（更新时同样自动抓取封面） | `backend/collections_api.py` |
+| GET/POST | `/api/notes` | 笔记 列表/新增 | `backend/notes_api.py` |
+| PUT/DELETE | `/api/notes/{id}` | 笔记 改/删 | `backend/notes_api.py` |
 
-封面抓取（`fetch_cover`，定义在 `collections_api.py`）：新增/更新收藏时若封面为空且链接是 http(s)，后端同步 GET 目标页面（2 秒超时、跟随重定向以兼容 b23.tv 短链），用正则提取 `og:image` 存库。任何失败都返回空串、绝不阻断保存，前端用渐变兜底封面。
+封面抓取（`fetch_cover`，定义在 `collections_api.py`）：新增/更新收藏时若封面为空且链接是 http(s)，后端同步 GET 目标页面（2 秒超时、跟随重定向以兼容 b23.tv 短链），用正则提取 `og:image` 存库；B 站链接走官方数据接口兜底（主站拦截机房 IP）；入库地址统一 https 化。任何失败都返回空串、绝不阻断保存，前端用渐变兜底封面。图片标签带 `referrerpolicy="no-referrer"` 绕过图床防盗链。
 
 ## 四、构建与部署
 

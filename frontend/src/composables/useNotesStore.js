@@ -1,82 +1,61 @@
-const STORAGE_KEY = 'personal-notes-v1'
+// 笔记数据存储 —— P1 数据上云
+// 从浏览器 localStorage 迁移到服务器 MySQL（通过 /api/notes 接口），
+// 套路与 useCollectionStore.js 完全一致：接口地址由 .env 的 VITE_API_URL 决定。
 
-const seedNotes = [
-  {
-    id: 'site-rebuild',
-    date: '2026-07-27',
-    mood: '重构',
-    title: '把个人网站从展示页改成个人系统',
-    excerpt: '先让网站能承载自己的内容流，再逐步接入数据库、AI 摘要和自动分类。',
-    content: '收藏不是终点。真正有价值的是把外部内容变成自己的笔记、项目和判断。',
-    tags: ['个人网站', 'Vue', '产品设计'],
-  },
-  {
-    id: 'learning-loop',
-    date: '2026-07-20',
-    mood: '学习',
-    title: '输入、整理、输出是一个闭环',
-    excerpt: '收藏不是终点，真正有价值的是把外部内容变成自己的笔记、项目和判断。',
-    content: '先快速收集，再定期整理，最后输出成可以复用的经验。',
-    tags: ['学习方法', '复盘'],
-  },
-]
+const apiUrl = import.meta.env.VITE_API_URL || ''
+const BASE = `${apiUrl}/api/notes`
 
-function today() {
-  return new Date().toISOString().slice(0, 10)
+// 统一请求封装：非 200 就抛错（错误信息取后端 detail 字段），与收藏页同一套
+async function request(url, options = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+  if (!res.ok) {
+    let detail = `请求失败（${res.status}）`
+    try {
+      const data = await res.json()
+      if (data.detail) detail = data.detail
+    } catch { /* 响应不是 JSON 就保留默认文案 */ }
+    throw new Error(detail)
+  }
+  return res.json()
 }
 
+// 补全缺字段的笔记为完整形态（默认值与旧版 localStorage 行为一致）
 function normalizeNote(note) {
-  const content = note.content?.trim() || note.excerpt?.trim() || ''
   return {
-    id: note.id || crypto.randomUUID(),
-    date: note.date || today(),
-    mood: note.mood?.trim() || '记录',
-    title: note.title?.trim() || '未命名笔记',
-    excerpt: note.excerpt?.trim() || content.slice(0, 80),
-    content,
-    tags: Array.isArray(note.tags) ? note.tags.filter(Boolean) : [],
+    id: note.id,
+    date: note.date || '',
+    mood: note.mood || '记录',
+    title: note.title || '未命名笔记',
+    excerpt: note.excerpt || '',
+    content: note.content || '',
+    tags: Array.isArray(note.tags) ? note.tags : [],
   }
-}
-
-function read() {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return seedNotes.map(normalizeNote)
-
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.map(normalizeNote) : seedNotes.map(normalizeNote)
-  } catch {
-    return seedNotes.map(normalizeNote)
-  }
-}
-
-function write(notes) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes))
 }
 
 export function useNotesStore() {
-  const list = () => read()
-
-  const create = (payload) => {
-    const note = normalizeNote({ ...payload, id: crypto.randomUUID(), date: today() })
-    const next = [note, ...read()]
-    write(next)
-    return note
+  // 【查】GET /api/notes —— 获取全部笔记
+  const list = async () => {
+    const rows = await request(BASE)
+    return rows.map(normalizeNote)
   }
 
-  const update = (id, payload) => {
-    const next = read().map(note => {
-      if (note.id !== id) return note
-      return normalizeNote({ ...note, ...payload, id: note.id, date: note.date })
-    })
-    write(next)
-    return next.find(note => note.id === id)
+  // 【增】POST /api/notes —— 新增（id 和日期由后端生成）
+  const create = async (payload) => {
+    return request(BASE, { method: 'POST', body: JSON.stringify(payload) })
   }
 
-  const remove = (id) => {
-    write(read().filter(note => note.id !== id))
+  // 【改】PUT /api/notes/某id —— 更新指定笔记
+  const update = async (id, payload) => {
+    return request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+  }
+
+  // 【删】DELETE /api/notes/某id —— 删除指定笔记
+  const remove = async (id) => {
+    return request(`${BASE}/${id}`, { method: 'DELETE' })
   }
 
   return { list, create, update, remove }
 }
-
