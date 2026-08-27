@@ -4,3 +4,8 @@ dist/
 __pycache__/
 *.pyc
 .DS_Store
+.superpowers/
+.qoder/
+*.bak
+*.zip
+.vercel/
