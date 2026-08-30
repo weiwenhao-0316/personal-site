@@ -26,10 +26,23 @@ personal-site/
 │   ├── requirements.txt       # Python 依赖清单
 │   ├── .env                   # 环境变量（密钥、数据库账密，不进 Git）
 │   └── .env.example           # 环境变量模板（内容已过时，实际所需见下文）
-├── docs/                      # 部署指南、路线图、需求交接文档
+├── docs/                      # 产品规格、部署指南、路线图、需求交接文档
+│   └── ai-handoffs/           # 不同 AI 之间的核对与交接记录
+├── skills/
+│   └── project-development-workflow/SKILL.md  # 可复用的项目开发流程 Skill
 ├── AGENTS.md                  # 本文件：给 AI 助手的协作规范
 └── AI开发提示词.md / 交接文档-给同事.md / 网站架构设计文档.md   # 项目上下文文档
 ```
+
+## 一点五、开发流程 Skill
+
+本项目采用轻量化的企业级开发流程，具体执行方法写在：
+
+`skills/project-development-workflow/SKILL.md`
+
+开始任何开发、重构或需求分析任务前，Agent 必须先读取这个 Skill，再遵守本文件。Skill 负责把任务推进为“需求发现 → 产品范围 → 技术方案 → 任务 Prompt → 实现 → 测试与验收 → 发布 → 交接”的闭环；本文件负责本仓库长期有效的目录、技术和安全规则。两者冲突时，以本文件和用户当前明确要求为准。
+
+每次任务至少要明确：目标、范围、允许修改的文件、禁止事项、完成标准和验证方式。一次只处理一张任务卡；代码写完不代表任务完成，必须报告实际验证结果。涉及线上服务器、数据库、Nginx、DNS 或部署的操作，仍须先获得用户明确授权。
 
 设计系统说明（2026-08 视觉改造后）：全站配色为"燕麦鼠尾草"风格，所有颜色/阴影/圆角定义在 `frontend/src/style.css` 的 `:root` 设计 tokens 里，改风格只需改那里；收藏页（Collection.vue）是 B 站风卡片（大封面 + 两行标题 + 平台·时间），封面的渐变兜底色定义在 `useCollectionStore.js`，按收藏 id 哈希取色。
 
@@ -99,6 +112,7 @@ npm run build        # 产物在 frontend/dist/，纯静态文件
 
 ## 五、改动代码时必须遵守的规则
 
+0. **先读取开发流程 Skill**：开始任务前先读取 `skills/project-development-workflow/SKILL.md`。如果当前 Agent 不会自动读取仓库 Skill，必须通过终端读取后再开始工作。
 1. **密钥与配置分离**：API Key、数据库密码只写在 `.env`（已被 .gitignore 排除），绝不硬编码进代码、绝不提交到 Git。`backend/.env` 和 `frontend/.env` 都不能提交。
 2. **接口必须带 `/api` 前缀**（Nginx 只转发 `/api`），FastAPI 的 docs/openapi 路径也要保持在 `/api/` 下。
 3. **SQL 一律用参数占位符**（`cur.execute(sql, (参数,))`），禁止字符串拼接，防 SQL 注入。
@@ -109,3 +123,5 @@ npm run build        # 产物在 frontend/dist/，纯静态文件
 8. **不要动这些东西**：`frontend/dist/`（构建产物）、`frontend/public/exam/`（1.3M 大文件资源）。Vercel 遗留文件和 `.bak` 备份已于 2026-08-27 清理，同类文件（`*.bak`、`*.zip`、`.vercel/`）已被 .gitignore 排除，不要再提交进来。
 9. **保持现有代码风格**：注释用中文、写给新手看（解释"为什么"而不只是"是什么"）；数据库字段下划线命名、前端字段驼峰命名，转换在后端做（参照 `row_to_item`）。
 10. **部署相关的服务器操作**（宝塔、Nginx、DNS）不要自动化执行，改动前先和用户确认。
+11. **需求不清先收敛范围**：不确定的想法先记录到 `docs/product-spec.md` 或 `docs/roadmap.md`，不要直接扩展当前任务。
+12. **完成后同步项目状态**：有实际里程碑时更新 `docs/roadmap.md` 或 `docs/ai-handoffs/`，只记录已验证事实；无法验证线上状态时必须标注“部署未验证”。
